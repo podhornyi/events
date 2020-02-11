@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  mysqldb:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - 3308:3306
+    volumes:
+      - ./my-data:/var/lib/mysql
+
+  api_server:
+    environment:
+      API_MYSQL_HOST: mysqldb
+      API_MYSQL_MIN: 1
+      API_MYSQL_MAX: 5
+      API_MYSQL_ROOT_USER: root
+      API_MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      API_MYSQL_USER: ${MYSQL_USER}
+      API_MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      API_MYSQL_DATABASE: ${MYSQL_DATABASE}
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    volumes:
+      - './:/app'
+    ports:
+      - 8080:8080
+    depends_on:
+      - mysqldb
+    command: ./init.sh
+
+volumes:
+  my-data:

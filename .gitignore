@@ -1,0 +1,4 @@
+.env/*
+.idea/*
+api/__pycache__/*
+my-data/*
