@@ -26,44 +26,46 @@ class Event:
                 raise
 
     async def get_count(self, conn):
-        query = 'SELECT COUNT(*) FROM metrics.Events WHERE %s' % self._get_where_expression()
+        query = 'SELECT COUNT(id) FROM metrics.Events WHERE %s' % self._get_where_expression()
         async with conn.cursor() as cur:
             await cur.execute(query, self._values)
             count = await cur.fetchone()
             return count
 
     async def get_stats(self, conn):
-        query = '''
-                SELECT id, uid, action, DATE_FORMAT(created_at, '%%%%Y-%%%%m-%%%%d'), COUNT(*) AS row_count 
+        query_data = '''
+                SELECT id, uid, action, DATE_FORMAT(created_at, '%%%%Y-%%%%m-%%%%d')
                 FROM metrics.Events 
                 WHERE %s
-                GROUP BY id, uid, action, created_at
         ''' % self._get_where_expression()
-        result = []
+        query_count = '''
+                SELECT count(id) as row_count
+                FROM metrics.Events 
+                WHERE %s
+        ''' % self._get_where_expression()
+        result = dict()
+        result_payload = []
         async with conn.cursor() as cur:
-            await cur.execute(query, self._values)
+            await cur.execute(query_data, self._values)
+            rows_data = await cur.fetchall()
+
+            await cur.execute(query_count, self._values)
             rows = await cur.fetchall()
-            for row in rows:
-                result.append({
+            for row in rows_data:
+                result_payload.append({
                     'id': row[0],
                     'uid': row[1],
                     'action': row[2],
-                    'created_at': row[3],
-                    'row_count': row[4],
+                    'created_at': row[3]
                 })
-        return result
+                
+            for row in rows_count:
+                result['total'] = row[0]
+        result['payload'] = result_payload
+        return result_payload
 
     def _get_where_expression(self):
         where_expression = ''
-        if self.id:
-            where_expression += 'id = %(id)s and '
-            self._values['id'] = self.id
-        if self.uid:
-            where_expression += 'uid = %(uid)s and '
-            self._values['uid'] = self.uid
-        if self.action:
-            where_expression += 'action = %(action)s and '
-            self._values['action'] = self.action
         if self.day:
             where_expression += 'created_at = %(created_at)s'
             self._values['created_at'] = self.day.strftime(FORMAT)
@@ -74,4 +76,15 @@ class Event:
             where_expression += f'created_at between %(date_start)s and %(date_end)s'
             self._values['date_start'] = date_start
             self._values['date_end'] = date_end
+            
+        if self.id:
+            where_expression += 'id = %(id)s and '
+            self._values['id'] = self.id
+        if self.uid:
+            where_expression += 'uid = %(uid)s and '
+            self._values['uid'] = self.uid
+        if self.action:
+            where_expression += 'action = %(action)s and '
+            self._values['action'] = self.action
+       
         return where_expression
